@@ -1,12 +1,49 @@
 
 # SystemLanguageModel
 
-SystemLanguageModel isn't a single class like NSString. Instead, it refers to the underlying generative models that Apple has integrated into the OS (iOS, macOS, and iPadOS) to power text-related features.
-The `System Language Model` is an `on-device Large Language Model (LLM)` designed for high-performance, private text processing. 
-Unlike "Cloud" models (like ChatGPT), these are optimized specifically for `Apple's Neural Engine (ANE)`.
+`SystemLanguageModel` is the `on-device large language model(LLM)` capable of text generation tasks — it's essentially the entry point to Apple's on-device LLM in the Foundation Models framework.
 
-## Key Characteristics
-Apple's system models differ from standard open-source models in three major ways:
-- On-Device Priority: Most tasks are handled locally. This ensures your data never leaves the device and responses are fast.
-- Adapter-Based Architecture: Instead of one giant model for everything, Apple uses a "base" model and switches small "Adapters" (LoRAs) for specific tasks (e.g., one adapter for summarizing, another for tone-shifting).
-- Speculative Decoding: The system uses a smaller, faster model to "guess" the next words, which are then verified by the larger model. This makes the text appear on your screen much faster.
+## What it is
+SystemLanguageModel is the primary access point to Apple's built-in LLM. We use it to get a reference to the model before creating a session.
+
+```
+import FoundationModels
+
+// Default general-purpose model
+let model = SystemLanguageModel.default
+
+// Specialized use case (e.g., content tagging)
+let taggingModel = SystemLanguageModel(useCase: .contentTagging)
+```
+
+## Checking Availability
+Before creating a session, one should check for `availability`, since the model can only run on Apple Intelligence-enabled devices in supported regions. availability is a two-case enum — either `.available` or `.unavailable`. If unavailable, you also receive a reason so you can adjust your UI accordingly.
+
+```
+let model = SystemLanguageModel.default
+
+switch model.availability {
+case .available:
+    // Proceed to create a session
+case .unavailable(let reason):
+    switch reason {
+    case .appleIntelligenceNotEnabled:
+        // Prompt user to enable Apple Intelligence
+    case .deviceNotEligible:
+        // Device doesn't support Apple Intelligence
+    case .modelNotReady:
+        // Model is still downloading
+    }
+}
+```
+
+The `isAvailable` property is an all-encompassing convenience check — if it returns true, we're all set. 
+
+## Default vs. Specialized Use Cases
+Beyond the default model, Apple also provides additional built-in specialized use cases backed by adapters. You can pass these to SystemLanguageModel's initializer. One notable specialized adapter is the `content tagging adapter`, which provides first-class support for tag generation, entity extraction, and topic detection.
+
+## Using It in a Session
+By default, LanguageModelSession uses SystemLanguageModel.default automatically. One can also pass it explicitly:
+
+> let session = LanguageModelSession(model: SystemLanguageModel.default)
+
